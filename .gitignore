@@ -1,0 +1,11 @@
+**/bin
+**/obj
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.log
+*.err
+*.suo
+*.sublime-project
+*.sublime-workspace
