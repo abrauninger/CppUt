@@ -21,9 +21,25 @@ public:
 		return m_methodFunction;
 	}
 
+	TestMethodMetadata* NextMethod = nullptr;
+
 private:
 	const wchar_t* m_methodName;
 	TestMethodType m_methodFunction;
+};
+
+
+static TestMethodMetadata* s_pHeadMethod = nullptr;
+
+
+class TestMethodMetadataAdder
+{
+public:
+	TestMethodMetadataAdder(TestMethodMetadata* pMetadata)
+	{
+		pMetadata->NextMethod = s_pHeadMethod;
+		s_pHeadMethod = pMetadata;
+	}
 };
 
 
@@ -31,6 +47,7 @@ class MyTestClass
 {
 public:
 	TestMethodMetadata m_metadataMyTestMethod { L"MyTestMethod", &MyTestMethod };
+	TestMethodMetadataAdder m_adderMyTestMethod { &m_metadataMyTestMethod };
 
 	static void MyTestMethod()
 	{
@@ -44,5 +61,11 @@ int main()
 	printf("Hello world!\n");
 
 	MyTestClass testClass;
-	testClass.m_metadataMyTestMethod.MethodFunction()();
+
+	TestMethodMetadata* pCurrentMethod = s_pHeadMethod;
+	while (pCurrentMethod != nullptr)
+	{
+		pCurrentMethod->MethodFunction()();
+		pCurrentMethod = pCurrentMethod->NextMethod;
+	}
 }
