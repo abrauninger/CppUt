@@ -49,18 +49,23 @@ public:
 	static void methodName()
 
 
-struct TestAllocator
+struct ClassInstantiator
 {
-	template <class T, class... Args>
-	static T* New(Args&&... args)
+	template <class T>
+	static void Instantiate()
 	{
-		return new T(std::forward<Args>(args)...);
+		// Using the 'new' operator is a convenient way to ensure that the type 'T' is instantiated by the compiler,
+		// meaning that the code for type 'T' is emitted.
+		// Note that if we just declared T as a local variable here, MSVC would compile it but it would crash at run-time.
+		// I'm not sure why the crash happens; this could be investigated more if we want.
+		T* pFoo = new T();
+		(pFoo);
 	}
 };
 
+
 class BaseTestClass
 {
-
 };
 
 class MyTestClass;
@@ -70,21 +75,7 @@ class TestClassMetadata
 public:
 	TestClassMetadata()
 	{
-		BaseTestClass* pInstance = ClassInstance();
-		(pInstance);
-	}
-
-	static BaseTestClass* ClassInstance()
-	{
-		// We use a C-style cast instead of static_cast, because static_cast produces a compiler error
-		// because the compiler doesn't know for sure that MyTestClass derives from BaseTestClass.
-		// TODO: How does the C-style cast work here?  Is it equivalent to a static_cast or reinterpret_cast?  Can we write it without a C-style cast?
-		
-		// Note: We would not be able to use the 'new' operator directly, because the compiler would complain that
-		// MyTestClass does not have a constructor (due to the fact that it's only been forward-declared at this point).
-		// By using a templated function instead, we can work around it.
-		// TODO: Understand more about why that is.
-		return (BaseTestClass*) TestAllocator::New<MyTestClass>();
+		ClassInstantiator::Instantiate<MyTestClass>();
 	}
 };
 
