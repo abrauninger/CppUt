@@ -43,15 +43,23 @@ public:
 };
 
 
+#define TEST_METHOD(methodName)		\
+	const TestMethodMetadata m_metadata_##methodName { L"methodName", &methodName }; \
+	TestMethodMetadataAdder m_adder_##methodName { &m_metadata_##methodName };	\
+	static void methodName()
+
+
 class MyTestClass
 {
 public:
-	const TestMethodMetadata m_metadataMyTestMethod { L"MyTestMethod", &MyTestMethod };
-	TestMethodMetadataAdder m_adderMyTestMethod { &m_metadataMyTestMethod };
-
-	static void MyTestMethod()
+	TEST_METHOD(MyTestMethod)
 	{
-		printf("Executing MyTestMethod.");
+		printf("Executing MyTestMethod.\n");
+	}
+
+	TEST_METHOD(MySecondTestMethod)
+	{
+		printf("And now executing MySecondTestMethod.\n");
 	}
 };
 
