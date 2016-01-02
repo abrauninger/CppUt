@@ -63,16 +63,11 @@ struct ClassInstantiator
 	}
 };
 
-
-class BaseTestClass
-{
-};
-
 class MyTestClass;
 
-static ClassInstantiator<MyTestClass> s_foo;
+static ClassInstantiator<MyTestClass> s_classInstance_MyTestClass;
 
-class MyTestClass : BaseTestClass
+class MyTestClass
 {
 public:
 	TEST_METHOD(MyTestMethod)
