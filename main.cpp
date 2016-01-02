@@ -49,17 +49,17 @@ public:
 	static void methodName()
 
 
+template <class T>
 struct ClassInstantiator
 {
-	template <class T>
-	static void Instantiate()
+	ClassInstantiator()
 	{
 		// Using the 'new' operator is a convenient way to ensure that the type 'T' is instantiated by the compiler,
 		// meaning that the code for type 'T' is emitted.
 		// Note that if we just declared T as a local variable here, MSVC would compile it but it would crash at run-time.
 		// I'm not sure why the crash happens; this could be investigated more if we want.
-		T* pFoo = new T();
-		(pFoo);
+		T* pT = new T();
+		(pT);
 	}
 };
 
@@ -70,16 +70,7 @@ class BaseTestClass
 
 class MyTestClass;
 
-class TestClassMetadata
-{
-public:
-	TestClassMetadata()
-	{
-		ClassInstantiator::Instantiate<MyTestClass>();
-	}
-};
-
-static TestClassMetadata s_foo;
+static ClassInstantiator<MyTestClass> s_foo;
 
 class MyTestClass : BaseTestClass
 {
