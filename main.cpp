@@ -43,13 +43,54 @@ public:
 };
 
 
-#define TEST_METHOD(methodName)		\
+#define TEST_METHOD(methodName) \
 	const TestMethodMetadata m_metadata_##methodName { L"methodName", &methodName }; \
-	TestMethodMetadataAdder m_adder_##methodName { &m_metadata_##methodName };	\
+	TestMethodMetadataAdder m_adder_##methodName { &m_metadata_##methodName }; \
 	static void methodName()
 
 
-class MyTestClass
+struct TestAllocator
+{
+	template <class T, class... Args>
+	static T* New(Args&&... args)
+	{
+		return new T(std::forward<Args>(args)...);
+	}
+};
+
+class BaseTestClass
+{
+
+};
+
+class MyTestClass;
+
+class TestClassMetadata
+{
+public:
+	TestClassMetadata()
+	{
+		BaseTestClass* pInstance = ClassInstance();
+		(pInstance);
+	}
+
+	static BaseTestClass* ClassInstance()
+	{
+		// We use a C-style cast instead of static_cast, because static_cast produces a compiler error
+		// because the compiler doesn't know for sure that MyTestClass derives from BaseTestClass.
+		// TODO: How does the C-style cast work here?  Is it equivalent to a static_cast or reinterpret_cast?  Can we write it without a C-style cast?
+		
+		// Note: We would not be able to use the 'new' operator directly, because the compiler would complain that
+		// MyTestClass does not have a constructor (due to the fact that it's only been forward-declared at this point).
+		// By using a templated function instead, we can work around it.
+		// TODO: Understand more about why that is.
+		return (BaseTestClass*) TestAllocator::New<MyTestClass>();
+	}
+};
+
+static TestClassMetadata s_foo;
+
+class MyTestClass : BaseTestClass
 {
 public:
 	TEST_METHOD(MyTestMethod)
@@ -62,8 +103,6 @@ public:
 		printf("And now executing MySecondTestMethod.\n");
 	}
 };
-
-static MyTestClass s_testClassDeclaration_MyTestClass;
 
 
 int main()
