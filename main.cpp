@@ -92,31 +92,36 @@ public:
 
 
 #define TEST_METHOD(methodName) \
-	const TestMethodMetadata c_methodMetadata_##methodName { L"methodName", &methodName }; \
-	TestMethodMetadataAdder m_methodAdder_##methodName { MyTestClassMetadata(), &c_methodMetadata_##methodName }; \
-	static void methodName()
+	const TestMethodMetadata c_methodMetadata_##methodName { L#methodName, &methodName }; \
+	TestMethodMetadataAdder m_methodAdder_##methodName { _MyTestClassMetadata(), &c_methodMetadata_##methodName }; \
+	static void methodName() \
 
 
+#define TEST_CLASS(className) \
+	class className; \
+	\
+	/* ClassInstantiator is necessary in order for any of the test methods in the test class to register themselves. */ \
+	static ClassInstantiator<className> s_classInstance_##className; \
+	\
+	\
+	/* The base class is necessary so that the TEST_METHOD macro can refer to '_MyTestClassMetadata'. */ \
+	class className##_Base \
+	{ \
+	protected: \
+		const TestClassMetadata* _MyTestClassMetadata() \
+		{ \
+			return &c_classMetadata_##className; \
+		} \
+		\
+	private: \
+		const TestClassMetadata c_classMetadata_##className { L#className }; \
+		TestClassMetadataAdder m_classAdder_##className { _MyTestClassMetadata() }; \
+	}; \
+	\
+	class className : className##_Base \
 
-class MyTestClass;
 
-// This is necessary in order for any of the test methods in the test class to register themselves.
-static ClassInstantiator<MyTestClass> s_classInstance_MyTestClass;
-
-class MyTestClass_Base
-{
-protected:
-	const TestClassMetadata* MyTestClassMetadata()
-	{
-		return &c_classMetadata_MyTestClass;
-	}
-
-private:
-	const TestClassMetadata c_classMetadata_MyTestClass { L"MyTestClass" };
-	TestClassMetadataAdder m_classAdder_MyTestClass { MyTestClassMetadata() };
-};
-
-class MyTestClass : MyTestClass_Base
+TEST_CLASS(MyTestClass2)
 {
 public:
 	TEST_METHOD(MyTestMethod)
@@ -143,6 +148,7 @@ int main()
 		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
 		while (pCurrentMethod != nullptr)
 		{
+			wprintf(L"Executing test method '%s'\n", pCurrentMethod->MethodName());
 			pCurrentMethod->MethodFunction()();
 			pCurrentMethod = pCurrentMethod->NextMethod;
 		}
