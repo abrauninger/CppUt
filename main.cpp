@@ -51,7 +51,6 @@ public:
 	TestClassMetadata(const wchar_t* className) :
 		m_className(className)
 	{
-		wprintf(L"TestClassMetadata ctor, this = %lld\n", reinterpret_cast<uint64_t>(this));
 	}
 
 	const wchar_t* ClassName() const
@@ -75,20 +74,8 @@ class TestMethodMetadataAdder
 public:
 	TestMethodMetadataAdder(const TestClassMetadata *pClass, const TestMethodMetadata* pMethod)
 	{
-		wprintf(L"TestMethodMetadataAdder ctor. TestClassMetadata: %lld\n", reinterpret_cast<uint64_t>(pClass));
-
-		if (pMethod == nullptr)
-			wprintf(L"pMethod is null.\n");
-
-		if (pMethod->NextMethod != nullptr)
-			wprintf(L"pMethod->NextMethod is not null.\n");
-
-		wprintf(L"pClass->HeadMethod was: %lld, ", reinterpret_cast<uint64_t>(pClass->HeadMethod));
-
 		const_cast<TestMethodMetadata*>(pMethod)->NextMethod = pClass->HeadMethod;
 		const_cast<TestClassMetadata*>(pClass)->HeadMethod = pMethod;
-
-		wprintf(L"pClass->HeadMethod is: %lld\n", reinterpret_cast<uint64_t>(pClass->HeadMethod));
 	}
 };
 
@@ -98,9 +85,6 @@ class TestClassMetadataAdder
 public:
 	TestClassMetadataAdder(const TestClassMetadata* pClass)
 	{
-		wprintf(L"TestClassMetadataAdder ctor\n");
-		wprintf(L"pClass = %lld, pClass->HeadMethod = %lld\n", reinterpret_cast<uint64_t>(pClass), reinterpret_cast<uint64_t>(pClass->HeadMethod));
-
 		const_cast<TestClassMetadata*>(pClass)->NextClass = s_pHeadClass;
 		s_pHeadClass = pClass;
 	}
@@ -108,9 +92,8 @@ public:
 
 
 #define TEST_METHOD(methodName) \
-	/* TODO: Rename 'const' variables to 'c_foo' */ \
-	const TestMethodMetadata m_metadata_##methodName { L"methodName", &methodName }; \
-	TestMethodMetadataAdder m_adder_##methodName { MyTestClassMetadata(), &m_metadata_##methodName }; \
+	const TestMethodMetadata c_methodMetadata_##methodName { L"methodName", &methodName }; \
+	TestMethodMetadataAdder m_methodAdder_##methodName { MyTestClassMetadata(), &c_methodMetadata_##methodName }; \
 	static void methodName()
 
 
@@ -130,7 +113,7 @@ protected:
 
 private:
 	const TestClassMetadata c_classMetadata_MyTestClass { L"MyTestClass" };
-	TestClassMetadataAdder m_adder_MyTestClass { MyTestClassMetadata() };
+	TestClassMetadataAdder m_classAdder_MyTestClass { MyTestClassMetadata() };
 };
 
 class MyTestClass : MyTestClass_Base
@@ -150,16 +133,12 @@ public:
 
 int main()
 {
-	wprintf(L"Hello world!\n");
+	wprintf(L"RUNNING UNIT TESTS\n\n");
 
 	const TestClassMetadata* pCurrentClass = s_pHeadClass;
 	while (pCurrentClass != nullptr)
 	{
-		wprintf(L"Executing test methods in test class '%s'; pCurrentClass = %lld\n", pCurrentClass->ClassName(), reinterpret_cast<uint64_t>(pCurrentClass));
-		wprintf(L"pCurrentClass->HeadMethod = %lld\n", reinterpret_cast<uint64_t>(pCurrentClass->HeadMethod));
-
-		if (pCurrentClass->HeadMethod == nullptr)
-			wprintf(L"The test class's head-method pointer is unfortunately null.");
+		wprintf(L"Executing test methods in test class '%s'\n", pCurrentClass->ClassName());
 
 		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
 		while (pCurrentMethod != nullptr)
