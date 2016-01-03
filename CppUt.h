@@ -1,7 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <StrSafe.h>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -12,6 +14,8 @@
 #pragma warning(disable: 4091)
 #include <DbgHelp.h>
 #pragma warning(pop)
+
+#undef min
 
 using TestMethodType = void (*)();
 
@@ -156,6 +160,7 @@ enum class ConsoleColor : uint8_t
 	Red = Color(true, false, false, true),
 	Green = Color(false, true, false, true),
 	White = Color(true, true, true, true),
+	Gray = Color(true, true, true, false),
 };
 
 template <class... Args>
@@ -200,11 +205,13 @@ inline void PrintTestName(const TestMethodMetadata& testMethod)
 static const wchar_t* c_succeededString = L"SUCCEEDED";
 static const wchar_t* c_failedString = L"FAILED";
 
-inline void PrintResult(ConsoleColor color, const wchar_t* resultString)
+inline void PrintRightAlignedResultWithDots(ConsoleColor color, const wchar_t* resultString, uint16_t rightEdgeColumnWidth = 0)
 {
 	uint16_t position;
-	uint16_t width;
-	std::tie(position, width) = ColumnPositionAndWindowWidth();
+	uint16_t windowWidth;
+	std::tie(position, windowWidth) = ColumnPositionAndWindowWidth();
+
+	auto width = rightEdgeColumnWidth > 0 ? std::min(rightEdgeColumnWidth, windowWidth) : windowWidth;
 
 	auto resultStringLength = wcslen(resultString);
 
@@ -221,12 +228,12 @@ inline void PrintResult(ConsoleColor color, const wchar_t* resultString)
 
 inline void PrintSuccessResult()
 {
-	PrintResult(ConsoleColor::Green, c_succeededString);
+	PrintRightAlignedResultWithDots(ConsoleColor::Green, c_succeededString);
 }
 
 inline void PrintFailureResult()
 {
-	PrintResult(ConsoleColor::Red, c_failedString);
+	PrintRightAlignedResultWithDots(ConsoleColor::Red, c_failedString);
 }
 
 struct TestFailure
@@ -259,6 +266,8 @@ inline void PrintFailureCallstack(const TestFailure& failure)
 
 	for (auto&& frame : failure.StackFrames)
 	{
+		auto address = reinterpret_cast<DWORD64>(frame);
+
 		Print(L"    ");
 
 		uint8_t symbolBuffer[sizeof(SYMBOL_INFOW) + c_maxSymbolNameLength * sizeof(wchar_t)];
@@ -267,14 +276,14 @@ inline void PrintFailureCallstack(const TestFailure& failure)
 		pSymbol->MaxNameLen = c_maxSymbolNameLength;
 		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFOW);
 
-		SymFromAddrW(process, reinterpret_cast<DWORD64>(frame), NULL /*Displacement*/, pSymbol);
+		SymFromAddrW(process, address, NULL /*Displacement*/, pSymbol);
 
 		IMAGEHLP_LINEW64 line;
 		line.SizeOfStruct = sizeof(IMAGEHLP_LINEW64);
 
 		DWORD displacement;
 
-		if (SymGetLineFromAddrW64(process, reinterpret_cast<DWORD64>(frame), &displacement, &line))
+		if (SymGetLineFromAddrW64(process, address, &displacement, &line))
 		{
 			PrintWithColor(ConsoleColor::Red, L"%s (%s:%lu)", pSymbol->Name, line.FileName, line.LineNumber);
 		}
@@ -310,9 +319,39 @@ inline void PrintFailures(const std::vector<TestFailure>& failures)
 	Print(L"\n");
 }
 
+struct ResultSummary
+{
+	uint32_t SucceededCount = 0;
+	uint32_t FailedCount = 0;
+};
+
+const uint16_t c_maxResultColumnWidth = 20;
+
+inline void PrintSummaryResultWithColor(const wchar_t* label, ConsoleColor color, uint32_t count)
+{
+	Print(L"%s", label);
+
+	wchar_t countString[10];
+	StringCchPrintfW(countString, _countof(countString), L"%u", count);
+
+	auto actualColor = count > 0 ? color : ConsoleColor::Gray;
+
+	PrintRightAlignedResultWithDots(actualColor, countString, c_maxResultColumnWidth);
+}
+
+inline void PrintResultSummary(const ResultSummary& summary)
+{
+	Print(L"\n");
+
+	PrintSummaryResultWithColor(c_succeededString, ConsoleColor::Green, summary.SucceededCount);
+	PrintSummaryResultWithColor(c_failedString, ConsoleColor::Red, summary.FailedCount);
+
+	Print(L"\n");
+}
+
 __declspec(thread) std::vector<TestFailure> s_currentFailures { };
 
-inline void RunTestMethod(const TestMethodMetadata& testMethod)
+inline void RunTestMethod(const TestMethodMetadata& testMethod, ResultSummary& summary)
 {
 	PrintTestName(testMethod);
 
@@ -321,9 +360,15 @@ inline void RunTestMethod(const TestMethodMetadata& testMethod)
 	testMethod.MethodFunction()();
 
 	if (s_currentFailures.size() == 0)
+	{
 		PrintSuccessResult();
+		++summary.SucceededCount;
+	}
 	else
+	{
 		PrintFailures(s_currentFailures);
+		++summary.FailedCount;
+	}
 }
 
 inline void AddFailure(TestFailure&& failure)
@@ -335,6 +380,8 @@ inline void AddFailure(TestFailure&& failure)
 
 inline void RunUnitTests(const UnitTestMetadata& unitTests)
 {
+	Details::ResultSummary summary;
+
 	const TestClassMetadata* pCurrentClass = unitTests.HeadClass;
 	while (pCurrentClass != nullptr)
 	{
@@ -343,12 +390,14 @@ inline void RunUnitTests(const UnitTestMetadata& unitTests)
 		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
 		while (pCurrentMethod != nullptr)
 		{
-			Details::RunTestMethod(*pCurrentMethod);
+			Details::RunTestMethod(*pCurrentMethod, summary);
 			pCurrentMethod = pCurrentMethod->NextMethod;
 		}
 
 		pCurrentClass = pCurrentClass->NextClass;
 	}
+
+	PrintResultSummary(summary);
 }
 
 }
