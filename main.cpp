@@ -10,12 +10,12 @@ TEST_CLASS(MyTestClass2, s_unitTests)
 public:
 	TEST_METHOD(MyTestMethod)
 	{
-		wprintf(L"Executing MyTestMethod.\n");
+		TestAssert::IsTrue(true);
 	}
 
 	TEST_METHOD(MySecondTestMethod)
 	{
-		wprintf(L"And now executing MySecondTestMethod.\n");
+		TestAssert::IsTrue(false);
 	}
 };
 

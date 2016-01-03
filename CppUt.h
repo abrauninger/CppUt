@@ -128,6 +128,32 @@ public:
 
 namespace CppUt {
 
+inline void PrintSuccess(const TestMethodMetadata& testMethod)
+{
+	wprintf(L"Test succeeded: %s\n", testMethod.MethodName());
+}
+
+inline void PrintFailure(const TestMethodMetadata& testMethod)
+{
+	wprintf(L"Test failed: %s\n", testMethod.MethodName());
+}
+
+__declspec(thread) bool s_testSuccess = true;
+
+inline void RunTestMethod(const TestMethodMetadata& testMethod)
+{
+	wprintf(L"Executing test method '%s'\n", testMethod.MethodName());
+
+	s_testSuccess = true;
+
+	testMethod.MethodFunction()();
+
+	if (s_testSuccess)
+		PrintSuccess(testMethod);
+	else
+		PrintFailure(testMethod);
+}
+
 inline void RunUnitTests(const UnitTestMetadata& unitTests)
 {
 	wprintf(L"RUNNING UNIT TESTS\n\n");
@@ -140,8 +166,7 @@ inline void RunUnitTests(const UnitTestMetadata& unitTests)
 		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
 		while (pCurrentMethod != nullptr)
 		{
-			wprintf(L"Executing test method '%s'\n", pCurrentMethod->MethodName());
-			pCurrentMethod->MethodFunction()();
+			RunTestMethod(*pCurrentMethod);
 			pCurrentMethod = pCurrentMethod->NextMethod;
 		}
 
@@ -150,3 +175,12 @@ inline void RunUnitTests(const UnitTestMetadata& unitTests)
 }
 
 }
+
+struct TestAssert
+{
+	static void IsTrue(bool condition)
+	{
+		if (!condition)
+			CppUt::s_testSuccess = false;
+	}
+};
