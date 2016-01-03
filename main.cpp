@@ -125,11 +125,32 @@ public:
 	class className : className##_Base \
 
 
+inline void RunUnitTests(const UnitTestMetadata& unitTests)
+{
+	wprintf(L"RUNNING UNIT TESTS\n\n");
 
-static UnitTestMetadata s_metadata;
+	const TestClassMetadata* pCurrentClass = unitTests.HeadClass;
+	while (pCurrentClass != nullptr)
+	{
+		wprintf(L"Executing test methods in test class '%s'\n", pCurrentClass->ClassName());
+
+		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
+		while (pCurrentMethod != nullptr)
+		{
+			wprintf(L"Executing test method '%s'\n", pCurrentMethod->MethodName());
+			pCurrentMethod->MethodFunction()();
+			pCurrentMethod = pCurrentMethod->NextMethod;
+		}
+
+		pCurrentClass = pCurrentClass->NextClass;
+	}
+}
 
 
-TEST_CLASS(MyTestClass2, s_metadata)
+static UnitTestMetadata s_unitTests;
+
+
+TEST_CLASS(MyTestClass2, s_unitTests)
 {
 public:
 	TEST_METHOD(MyTestMethod)
@@ -146,21 +167,5 @@ public:
 
 int main()
 {
-	wprintf(L"RUNNING UNIT TESTS\n\n");
-
-	const TestClassMetadata* pCurrentClass = s_metadata.HeadClass;
-	while (pCurrentClass != nullptr)
-	{
-		wprintf(L"Executing test methods in test class '%s'\n", pCurrentClass->ClassName());
-
-		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
-		while (pCurrentMethod != nullptr)
-		{
-			wprintf(L"Executing test method '%s'\n", pCurrentMethod->MethodName());
-			pCurrentMethod->MethodFunction()();
-			pCurrentMethod = pCurrentMethod->NextMethod;
-		}
-
-		pCurrentClass = pCurrentClass->NextClass;
-	}
+	RunUnitTests(s_unitTests);
 }
