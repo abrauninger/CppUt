@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <tuple>
 #include <utility>
 #include <Windows.h>
 
@@ -169,6 +170,14 @@ void PrintWithColor(ConsoleColor color, const wchar_t* formatString, Args&&... a
 	SetConsoleTextAttribute(hStdOut, bufferInfo.wAttributes);
 }
 
+inline std::pair<uint16_t, uint16_t> ColumnPositionAndWindowWidth()
+{
+	CONSOLE_SCREEN_BUFFER_INFO bufferInfo;
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &bufferInfo);
+
+	return { bufferInfo.dwCursorPosition.X, bufferInfo.dwMaximumWindowSize.X };
+}
+
 inline void PrintTestClassName(const TestClassMetadata& testClass)
 {
 	Print(L"\n%s\n", testClass.ClassName());
@@ -179,16 +188,36 @@ inline void PrintTestName(const TestMethodMetadata& testMethod)
 	Print(L"  %s", testMethod.MethodName());
 }
 
-inline void PrintSuccess(const TestMethodMetadata& /*testMethod*/)
+static const wchar_t* c_succeededString = L"SUCCEEDED";
+static const wchar_t* c_failedString = L"FAILED";
+
+inline void PrintSuccessOrFailure(ConsoleColor color, const wchar_t* resultString)
 {
-	Print(L"....");
-	PrintWithColor(ConsoleColor::Green, L"SUCCEEDED\n");
+	uint16_t position;
+	uint16_t width;
+	std::tie(position, width) = ColumnPositionAndWindowWidth();
+
+	auto resultStringLength = wcslen(resultString);
+
+	auto dotCount = width - position - resultStringLength - 1;
+
+	if (dotCount < 0)
+		dotCount = 0;
+
+	for (uint16_t i = 0; i < dotCount; ++i)
+		Print(L".");
+
+	PrintWithColor(color, L"%s\n", resultString);
 }
 
-inline void PrintFailure(const TestMethodMetadata& /*testMethod*/)
+inline void PrintSuccess()
 {
-	Print(L"....");
-	PrintWithColor(ConsoleColor::Red, L"FAILED\n");
+	PrintSuccessOrFailure(ConsoleColor::Green, c_succeededString);
+}
+
+inline void PrintFailure()
+{
+	PrintSuccessOrFailure(ConsoleColor::Red, c_failedString);
 }
 
 __declspec(thread) bool s_testSuccess = true;
@@ -202,9 +231,9 @@ inline void RunTestMethod(const TestMethodMetadata& testMethod)
 	testMethod.MethodFunction()();
 
 	if (s_testSuccess)
-		PrintSuccess(testMethod);
+		PrintSuccess();
 	else
-		PrintFailure(testMethod);
+		PrintFailure();
 }
 
 inline void RunUnitTests(const UnitTestMetadata& unitTests)
