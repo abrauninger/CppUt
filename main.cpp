@@ -66,16 +66,20 @@ private:
 };
 
 
-static const TestClassMetadata* s_pHeadClass = nullptr;
+class UnitTestMetadata
+{
+public:
+	const TestClassMetadata* HeadClass = nullptr;
+};
 
 
 class TestMethodMetadataAdder
 {
 public:
-	TestMethodMetadataAdder(const TestClassMetadata *pClass, const TestMethodMetadata* pMethod)
+	TestMethodMetadataAdder(const TestClassMetadata& cl, const TestMethodMetadata& method)
 	{
-		const_cast<TestMethodMetadata*>(pMethod)->NextMethod = pClass->HeadMethod;
-		const_cast<TestClassMetadata*>(pClass)->HeadMethod = pMethod;
+		const_cast<TestMethodMetadata&>(method).NextMethod = cl.HeadMethod;
+		const_cast<TestClassMetadata&>(cl).HeadMethod = &method;
 	}
 };
 
@@ -83,21 +87,21 @@ public:
 class TestClassMetadataAdder
 {
 public:
-	TestClassMetadataAdder(const TestClassMetadata* pClass)
+	TestClassMetadataAdder(const UnitTestMetadata& unitTests, const TestClassMetadata& cl)
 	{
-		const_cast<TestClassMetadata*>(pClass)->NextClass = s_pHeadClass;
-		s_pHeadClass = pClass;
+		const_cast<TestClassMetadata&>(cl).NextClass = unitTests.HeadClass;
+		const_cast<UnitTestMetadata&>(unitTests).HeadClass = &cl;
 	}
 };
 
 
 #define TEST_METHOD(methodName) \
 	const TestMethodMetadata c_methodMetadata_##methodName { L#methodName, &methodName }; \
-	TestMethodMetadataAdder m_methodAdder_##methodName { _MyTestClassMetadata(), &c_methodMetadata_##methodName }; \
+	TestMethodMetadataAdder m_methodAdder_##methodName { _MyTestClassMetadata(), c_methodMetadata_##methodName }; \
 	static void methodName() \
 
 
-#define TEST_CLASS(className) \
+#define TEST_CLASS(className, unitTestMetadata) \
 	class className; \
 	\
 	/* ClassInstantiator is necessary in order for any of the test methods in the test class to register themselves. */ \
@@ -108,20 +112,24 @@ public:
 	class className##_Base \
 	{ \
 	protected: \
-		const TestClassMetadata* _MyTestClassMetadata() \
+		const TestClassMetadata& _MyTestClassMetadata() \
 		{ \
-			return &c_classMetadata_##className; \
+			return c_classMetadata_##className; \
 		} \
 		\
 	private: \
 		const TestClassMetadata c_classMetadata_##className { L#className }; \
-		TestClassMetadataAdder m_classAdder_##className { _MyTestClassMetadata() }; \
+		TestClassMetadataAdder m_classAdder_##className { unitTestMetadata, _MyTestClassMetadata() }; \
 	}; \
 	\
 	class className : className##_Base \
 
 
-TEST_CLASS(MyTestClass2)
+
+static UnitTestMetadata s_metadata;
+
+
+TEST_CLASS(MyTestClass2, s_metadata)
 {
 public:
 	TEST_METHOD(MyTestMethod)
@@ -140,7 +148,7 @@ int main()
 {
 	wprintf(L"RUNNING UNIT TESTS\n\n");
 
-	const TestClassMetadata* pCurrentClass = s_pHeadClass;
+	const TestClassMetadata* pCurrentClass = s_metadata.HeadClass;
 	while (pCurrentClass != nullptr)
 	{
 		wprintf(L"Executing test methods in test class '%s'\n", pCurrentClass->ClassName());
