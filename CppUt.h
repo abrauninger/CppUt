@@ -243,7 +243,8 @@ std::vector<void*> GetCurrentStackFrames()
 	std::vector<void*> frames;
 	frames.resize(c_maxStackFrames);
 
-	auto frameCount = CaptureStackBackTrace(0 /*FramesToSkip*/, c_maxStackFrames, frames.data(), NULL /*BackTraceHash*/);
+	// Skip the current frame since we don't need to see 'GetCurrentStackFrames' on every callstack.
+	auto frameCount = CaptureStackBackTrace(1 /*FramesToSkip*/, c_maxStackFrames, frames.data(), NULL /*BackTraceHash*/);
 
 	frames.resize(frameCount);
 
@@ -254,18 +255,35 @@ inline void PrintFailureCallstack(const TestFailure& failure)
 {
 	auto process = GetCurrentProcess();
 	SymInitialize(process, NULL /*UserSearchPath*/, TRUE /*fInvadeProcess*/);
+	SymSetOptions(SYMOPT_LOAD_LINES);
 
 	for (auto&& frame : failure.StackFrames)
 	{
-		uint8_t buffer[sizeof(SYMBOL_INFOW) + c_maxSymbolNameLength * sizeof(wchar_t)];
+		Print(L"    ");
 
-		PSYMBOL_INFOW pSymbol = reinterpret_cast<PSYMBOL_INFOW>(buffer);
+		uint8_t symbolBuffer[sizeof(SYMBOL_INFOW) + c_maxSymbolNameLength * sizeof(wchar_t)];
+
+		PSYMBOL_INFOW pSymbol = reinterpret_cast<PSYMBOL_INFOW>(symbolBuffer);
 		pSymbol->MaxNameLen = c_maxSymbolNameLength;
-		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFOW);
 
 		SymFromAddrW(process, reinterpret_cast<DWORD64>(frame), NULL /*Displacement*/, pSymbol);
 
-		PrintWithColor(ConsoleColor::Red, L"    %s\n", pSymbol->Name);
+		IMAGEHLP_LINEW64 line;
+		line.SizeOfStruct = sizeof(IMAGEHLP_LINEW64);
+
+		DWORD displacement;
+
+		if (SymGetLineFromAddrW64(process, reinterpret_cast<DWORD64>(frame), &displacement, &line))
+		{
+			PrintWithColor(ConsoleColor::Red, L"%s (%s:%lu)", pSymbol->Name, line.FileName, line.LineNumber);
+		}
+		else
+		{
+			PrintWithColor(ConsoleColor::Red, L"%s (0x%0X)", pSymbol->Name, pSymbol->Address);
+		}
+
+		Print(L"\n");
 	}
 }
 
