@@ -128,21 +128,31 @@ public:
 
 namespace CppUt {
 
-inline void PrintSuccess(const TestMethodMetadata& testMethod)
+inline void PrintTestClassName(const TestClassMetadata& testClass)
 {
-	wprintf(L"Test succeeded: %s\n", testMethod.MethodName());
+	wprintf(L"\n%s\n", testClass.ClassName());
 }
 
-inline void PrintFailure(const TestMethodMetadata& testMethod)
+inline void PrintTestName(const TestMethodMetadata& testMethod)
 {
-	wprintf(L"Test failed: %s\n", testMethod.MethodName());
+	wprintf(L"  %s", testMethod.MethodName());
+}
+
+inline void PrintSuccess(const TestMethodMetadata& /*testMethod*/)
+{
+	wprintf(L"....SUCCEEDED\n");
+}
+
+inline void PrintFailure(const TestMethodMetadata& /*testMethod*/)
+{
+	wprintf(L"....FAILED\n");
 }
 
 __declspec(thread) bool s_testSuccess = true;
 
 inline void RunTestMethod(const TestMethodMetadata& testMethod)
 {
-	wprintf(L"Executing test method '%s'\n", testMethod.MethodName());
+	PrintTestName(testMethod);
 
 	s_testSuccess = true;
 
@@ -156,12 +166,10 @@ inline void RunTestMethod(const TestMethodMetadata& testMethod)
 
 inline void RunUnitTests(const UnitTestMetadata& unitTests)
 {
-	wprintf(L"RUNNING UNIT TESTS\n\n");
-
 	const TestClassMetadata* pCurrentClass = unitTests.HeadClass;
 	while (pCurrentClass != nullptr)
 	{
-		wprintf(L"Executing test methods in test class '%s'\n", pCurrentClass->ClassName());
+		PrintTestClassName(*pCurrentClass);
 
 		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
 		while (pCurrentMethod != nullptr)
