@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdio>
+#include <utility>
+#include <Windows.h>
 
 using TestMethodType = void (*)();
 
@@ -128,24 +131,64 @@ public:
 
 namespace CppUt {
 
+inline constexpr uint8_t ShiftBit(bool bit, uint8_t numberToShift)
+{
+	return static_cast<uint8_t>(bit) << numberToShift;
+}
+
+inline constexpr uint8_t Color(bool red, bool green, bool blue, bool intense)
+{
+	return ShiftBit(intense, 3) | ShiftBit(red, 2) | ShiftBit(green, 1) | ShiftBit(blue, 0);
+}
+
+enum class ConsoleColor : uint8_t
+{
+	Red = Color(true, false, false, true),
+	Green = Color(false, true, false, true),
+	White = Color(true, true, true, true),
+};
+
+template <class... Args>
+void Print(const wchar_t* formatString, Args&&... args)
+{
+	wprintf(formatString, std::forward<Args>(args)...);
+}
+
+template <class... Args>
+void PrintWithColor(ConsoleColor color, const wchar_t* formatString, Args&&... args)
+{
+	auto hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	CONSOLE_SCREEN_BUFFER_INFO bufferInfo;
+	GetConsoleScreenBufferInfo(hStdOut, &bufferInfo);
+
+	SetConsoleTextAttribute(hStdOut, static_cast<uint8_t>(color));
+
+	wprintf(formatString, std::forward<Args>(args)...);
+
+	SetConsoleTextAttribute(hStdOut, bufferInfo.wAttributes);
+}
+
 inline void PrintTestClassName(const TestClassMetadata& testClass)
 {
-	wprintf(L"\n%s\n", testClass.ClassName());
+	Print(L"\n%s\n", testClass.ClassName());
 }
 
 inline void PrintTestName(const TestMethodMetadata& testMethod)
 {
-	wprintf(L"  %s", testMethod.MethodName());
+	Print(L"  %s", testMethod.MethodName());
 }
 
 inline void PrintSuccess(const TestMethodMetadata& /*testMethod*/)
 {
-	wprintf(L"....SUCCEEDED\n");
+	Print(L"....");
+	PrintWithColor(ConsoleColor::Green, L"SUCCEEDED\n");
 }
 
 inline void PrintFailure(const TestMethodMetadata& /*testMethod*/)
 {
-	wprintf(L"....FAILED\n");
+	Print(L"....");
+	PrintWithColor(ConsoleColor::Red, L"FAILED\n");
 }
 
 __declspec(thread) bool s_testSuccess = true;
