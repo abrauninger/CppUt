@@ -4,7 +4,14 @@
 #include <cstdio>
 #include <tuple>
 #include <utility>
+#include <vector>
 #include <Windows.h>
+
+// DbgHelp.h needs to be #included after other stuff (Windows.h, etc.)
+#pragma warning(push)
+#pragma warning(disable: 4091)
+#include <DbgHelp.h>
+#pragma warning(pop)
 
 using TestMethodType = void (*)();
 
@@ -132,6 +139,8 @@ public:
 
 namespace CppUt {
 
+namespace Details {
+
 inline constexpr uint8_t ShiftBit(bool bit, uint8_t numberToShift)
 {
 	return static_cast<uint8_t>(bit) << numberToShift;
@@ -191,7 +200,7 @@ inline void PrintTestName(const TestMethodMetadata& testMethod)
 static const wchar_t* c_succeededString = L"SUCCEEDED";
 static const wchar_t* c_failedString = L"FAILED";
 
-inline void PrintSuccessOrFailure(ConsoleColor color, const wchar_t* resultString)
+inline void PrintResult(ConsoleColor color, const wchar_t* resultString)
 {
 	uint16_t position;
 	uint16_t width;
@@ -210,43 +219,92 @@ inline void PrintSuccessOrFailure(ConsoleColor color, const wchar_t* resultStrin
 	PrintWithColor(color, L"%s\n", resultString);
 }
 
-inline void PrintSuccess()
+inline void PrintSuccessResult()
 {
-	PrintSuccessOrFailure(ConsoleColor::Green, c_succeededString);
+	PrintResult(ConsoleColor::Green, c_succeededString);
 }
 
-inline void PrintFailure()
+inline void PrintFailureResult()
 {
-	PrintSuccessOrFailure(ConsoleColor::Red, c_failedString);
+	PrintResult(ConsoleColor::Red, c_failedString);
 }
 
-__declspec(thread) bool s_testSuccess = true;
+struct TestFailure
+{
+	std::vector<void*> StackFrames;
+};
+
+const size_t c_maxStackFrames = 1024;
+const size_t c_maxSymbolNameLength = 1024;
+
+std::vector<void*> GetCurrentStackFrames()
+{
+	std::vector<void*> frames;
+	frames.resize(c_maxStackFrames);
+
+	auto frameCount = CaptureStackBackTrace(0 /*FramesToSkip*/, c_maxStackFrames, frames.data(), NULL /*BackTraceHash*/);
+
+	frames.resize(frameCount);
+
+	return frames;
+}
+
+inline void PrintFailureCallstack(const TestFailure& failure)
+{
+	auto process = GetCurrentProcess();
+	SymInitialize(process, NULL /*UserSearchPath*/, TRUE /*fInvadeProcess*/);
+
+	for (auto&& frame : failure.StackFrames)
+	{
+		uint8_t buffer[sizeof(SYMBOL_INFOW) + c_maxSymbolNameLength * sizeof(wchar_t)];
+
+		PSYMBOL_INFOW pSymbol = reinterpret_cast<PSYMBOL_INFOW>(buffer);
+		pSymbol->MaxNameLen = c_maxSymbolNameLength;
+		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+
+		SymFromAddrW(process, reinterpret_cast<DWORD64>(frame), NULL /*Displacement*/, pSymbol);
+
+		PrintWithColor(ConsoleColor::Red, L"    %s\n", pSymbol->Name);
+	}
+}
+
+inline void PrintFailures(const std::vector<TestFailure>& failures)
+{
+	PrintFailureResult();
+
+	for (auto&& failure : failures)
+		PrintFailureCallstack(failure);
+}
+
+__declspec(thread) std::vector<TestFailure> s_currentFailures { };
 
 inline void RunTestMethod(const TestMethodMetadata& testMethod)
 {
 	PrintTestName(testMethod);
 
-	s_testSuccess = true;
+	s_currentFailures = { };
 
 	testMethod.MethodFunction()();
 
-	if (s_testSuccess)
-		PrintSuccess();
+	if (s_currentFailures.size() == 0)
+		PrintSuccessResult();
 	else
-		PrintFailure();
+		PrintFailures(s_currentFailures);
 }
+
+} // namespace CppUt::Details
 
 inline void RunUnitTests(const UnitTestMetadata& unitTests)
 {
 	const TestClassMetadata* pCurrentClass = unitTests.HeadClass;
 	while (pCurrentClass != nullptr)
 	{
-		PrintTestClassName(*pCurrentClass);
+		Details::PrintTestClassName(*pCurrentClass);
 
 		const TestMethodMetadata* pCurrentMethod = pCurrentClass->HeadMethod;
 		while (pCurrentMethod != nullptr)
 		{
-			RunTestMethod(*pCurrentMethod);
+			Details::RunTestMethod(*pCurrentMethod);
 			pCurrentMethod = pCurrentMethod->NextMethod;
 		}
 
@@ -261,6 +319,6 @@ struct TestAssert
 	static void IsTrue(bool condition)
 	{
 		if (!condition)
-			CppUt::s_testSuccess = false;
+			CppUt::Details::s_currentFailures.emplace_back(CppUt::Details::TestFailure { CppUt::Details::GetCurrentStackFrames() });
 	}
 };
