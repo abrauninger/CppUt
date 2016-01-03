@@ -231,6 +231,7 @@ inline void PrintFailureResult()
 
 struct TestFailure
 {
+	std::wstring Message;
 	std::vector<void*> StackFrames;
 };
 
@@ -272,8 +273,23 @@ inline void PrintFailures(const std::vector<TestFailure>& failures)
 {
 	PrintFailureResult();
 
+	size_t failureNumber = 1;
+
 	for (auto&& failure : failures)
+	{
+		Print(L"\n  ");
+
+		if (failures.size() > 1)
+			PrintWithColor(ConsoleColor::Red, L"%lld of %lld: ", failureNumber, failures.size());
+
+		PrintWithColor(ConsoleColor::Red, L"%s\n", failure.Message.c_str());
+
 		PrintFailureCallstack(failure);
+
+		++failureNumber;
+	}
+
+	Print(L"\n");
 }
 
 __declspec(thread) std::vector<TestFailure> s_currentFailures { };
@@ -290,6 +306,11 @@ inline void RunTestMethod(const TestMethodMetadata& testMethod)
 		PrintSuccessResult();
 	else
 		PrintFailures(s_currentFailures);
+}
+
+inline void AddFailure(TestFailure&& failure)
+{
+	s_currentFailures.emplace_back(std::move(failure));
 }
 
 } // namespace CppUt::Details
@@ -316,9 +337,18 @@ inline void RunUnitTests(const UnitTestMetadata& unitTests)
 
 struct TestAssert
 {
-	static void IsTrue(bool condition)
+	static void Fail(const wchar_t* message)
+	{
+		CppUt::Details::TestFailure failure;
+		failure.Message = message;
+		failure.StackFrames = CppUt::Details::GetCurrentStackFrames();
+
+		CppUt::Details::AddFailure(std::move(failure));
+	}
+
+	static void IsTrue(bool condition, const wchar_t* failureMessage)
 	{
 		if (!condition)
-			CppUt::Details::s_currentFailures.emplace_back(CppUt::Details::TestFailure { CppUt::Details::GetCurrentStackFrames() });
+			Fail(failureMessage);
 	}
 };
