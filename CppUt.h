@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <SafeInt.h>
 #include <StrSafe.h>
 #include <tuple>
 #include <utility>
@@ -16,6 +17,8 @@
 #pragma warning(pop)
 
 #undef min
+
+using namespace msl::utilities;
 
 using TestMethodType = void (*)();
 
@@ -117,7 +120,7 @@ public:
 	static void methodName() \
 
 
-#define TEST_CLASS(className, unitTestMetadata) \
+#define TEST_CLASS(className) \
 	class className; \
 	\
 	/* ClassInstantiator is necessary in order for any of the test methods in the test class to register themselves. */ \
@@ -135,7 +138,7 @@ public:
 		\
 	private: \
 		const TestClassMetadata c_classMetadata_##className { L#className }; \
-		TestClassMetadataAdder m_classAdder_##className { unitTestMetadata, _MyTestClassMetadata() }; \
+		TestClassMetadataAdder m_classAdder_##className { ::CppUt::Details::GlobalMetadata(), _MyTestClassMetadata() }; \
 	}; \
 	\
 	class className : className##_Base \
@@ -245,7 +248,7 @@ struct TestFailure
 const size_t c_maxStackFrames = 1024;
 const size_t c_maxSymbolNameLength = 1024;
 
-std::vector<void*> GetCurrentStackFrames()
+inline std::vector<void*> GetCurrentStackFrames()
 {
 	std::vector<void*> frames;
 	frames.resize(c_maxStackFrames);
@@ -258,13 +261,13 @@ std::vector<void*> GetCurrentStackFrames()
 	return frames;
 }
 
-inline void PrintFailureCallstack(const TestFailure& failure)
+inline void PrintCallstack(const std::vector<void*>& stackFrames)
 {
 	auto process = GetCurrentProcess();
 	SymInitialize(process, NULL /*UserSearchPath*/, TRUE /*fInvadeProcess*/);
 	SymSetOptions(SYMOPT_LOAD_LINES);
 
-	for (auto&& frame : failure.StackFrames)
+	for (auto&& frame : stackFrames)
 	{
 		auto address = reinterpret_cast<DWORD64>(frame);
 
@@ -311,7 +314,7 @@ inline void PrintFailures(const std::vector<TestFailure>& failures)
 
 		PrintWithColor(ConsoleColor::Red, L"%s\n", failure.Message.c_str());
 
-		PrintFailureCallstack(failure);
+		PrintCallstack(failure.StackFrames);
 
 		++failureNumber;
 	}
@@ -349,37 +352,18 @@ inline void PrintResultSummary(const ResultSummary& summary)
 	Print(L"\n");
 }
 
-__declspec(thread) std::vector<TestFailure> s_currentFailures { };
+UnitTestMetadata& GlobalMetadata();
 
-inline void RunTestMethod(const TestMethodMetadata& testMethod, ResultSummary& summary)
-{
-	PrintTestName(testMethod);
+void RunTestMethod(const TestMethodMetadata& testMethod, ResultSummary& summary);
 
-	s_currentFailures = { };
-
-	testMethod.MethodFunction()();
-
-	if (s_currentFailures.size() == 0)
-	{
-		PrintSuccessResult();
-		++summary.SucceededCount;
-	}
-	else
-	{
-		PrintFailures(s_currentFailures);
-		++summary.FailedCount;
-	}
-}
-
-inline void AddFailure(TestFailure&& failure)
-{
-	s_currentFailures.emplace_back(std::move(failure));
-}
+void AddFailure(TestFailure&& failure);
 
 } // namespace CppUt::Details
 
-inline void RunUnitTests(const UnitTestMetadata& unitTests)
+inline void RunUnitTests()
 {
+	const auto& unitTests = CppUt::Details::GlobalMetadata();
+
 	Details::ResultSummary summary;
 
 	const TestClassMetadata* pCurrentClass = unitTests.HeadClass;
@@ -402,8 +386,9 @@ inline void RunUnitTests(const UnitTestMetadata& unitTests)
 
 }
 
-struct TestAssert
+class TestAssert
 {
+public:
 	static void Fail(const wchar_t* message)
 	{
 		CppUt::Details::TestFailure failure;
@@ -417,5 +402,42 @@ struct TestAssert
 	{
 		if (!condition)
 			Fail(failureMessage);
+	}
+
+	static void AreEqual(uint32_t value1, uint32_t value2)
+	{
+		AreEqualImpl<uint32_t>(value1, value2);
+	}
+
+	static void AreEqual(int32_t value1, int32_t value2)
+	{
+		AreEqualImpl<int32_t>(value1, value2);
+	}
+
+	static void AreEqual(int32_t value1, uint32_t value2)
+	{
+		AreEqualImpl<int32_t>(value1, SafeInt<int32_t>(value2));
+	}
+
+	static void AreEqual(int32_t value1, size_t value2)
+	{
+		AreEqualImpl<size_t>(SafeInt<size_t>(value1), value2);
+	}
+
+	static void AreEqual(size_t value1, size_t value2)
+	{
+		AreEqualImpl<size_t>(value1, value2);
+	}
+
+	static void AreEqual(const wchar_t* value1, const wchar_t* value2)
+	{
+		IsTrue(wcscmp(value1, value2) == 0, L"AreEqual failed");
+	}
+
+private:
+	template <class T>
+	static void AreEqualImpl(const T& value1, const T& value2)
+	{
+		IsTrue(value1 == value2, L"AreEqual failed");
 	}
 };

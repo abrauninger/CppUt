@@ -2,10 +2,7 @@
 #include <cstdio>
 
 
-static UnitTestMetadata s_unitTests;
-
-
-TEST_CLASS(MyTestClass2, s_unitTests)
+TEST_CLASS(MyTestClass2)
 {
 public:
 	TEST_METHOD(MyTestMethod)
@@ -28,5 +25,5 @@ public:
 
 int main()
 {
-	CppUt::RunUnitTests(s_unitTests);
+	CppUt::RunUnitTests();
 }
