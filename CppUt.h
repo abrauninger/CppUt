@@ -8,15 +8,6 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <Windows.h>
-
-// DbgHelp.h needs to be #included after other stuff (Windows.h, etc.)
-#pragma warning(push)
-#pragma warning(disable: 4091)
-#include <DbgHelp.h>
-#pragma warning(pop)
-
-#undef min
 
 using namespace msl::utilities;
 
@@ -176,10 +167,20 @@ public:
 		CppUt::Details::AddFailure(std::move(failure));
 	}
 
+	static void IsTrue(bool condition)
+	{
+		IsTrue(condition, L"Assert failed.");
+	}
+
 	static void IsTrue(bool condition, const wchar_t* failureMessage)
 	{
 		if (!condition)
 			Fail(failureMessage);
+	}
+
+	static void IsFalse(bool condition)
+	{
+		IsTrue(!condition);
 	}
 
 	static void AreEqual(uint32_t value1, uint32_t value2)
@@ -210,6 +211,18 @@ public:
 	static void AreEqual(const wchar_t* value1, const wchar_t* value2)
 	{
 		IsTrue(wcscmp(value1, value2) == 0, L"AreEqual failed");
+	}
+
+	static constexpr double c_epsilon = 0.0001;
+
+	static void AreEqual(double value1, double value2)
+	{
+		IsTrue(value1 >= value2 - c_epsilon && value1 <= value2 + c_epsilon);
+	}
+
+	static void AreEqual(int32_t value1, double value2)
+	{
+		AreEqual(static_cast<double>(value1), value2);
 	}
 
 private:

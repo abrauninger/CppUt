@@ -1,5 +1,14 @@
 #include "CppUt.h"
 #include <memory>
+#include <Windows.h>
+
+// DbgHelp.h needs to be #included after other stuff (Windows.h, etc.)
+#pragma warning(push)
+#pragma warning(disable: 4091)
+#include <DbgHelp.h>
+#pragma warning(pop)
+
+#undef min
 
 namespace CppUt {
 namespace Details {
