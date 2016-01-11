@@ -226,11 +226,23 @@ void RunTestMethod(const TestMethodMetadata& testMethod, ResultSummary& summary)
 	++summary.SucceededCount;
 }
 
+void BreakInDebugger()
+{
+	if (IsDebuggerPresent())
+		DebugBreak();
+}
+
 } // namespace Details
 
 
-void RunUnitTests()
+void RunUnitTests(bool waitForDebugger)
 {
+	if (waitForDebugger)
+	{
+		printf("Attach now and press Enter to continue...");
+		getchar();
+	}
+
 	const auto& unitTests = CppUt::Details::GlobalMetadata();
 
 	Details::ResultSummary summary;

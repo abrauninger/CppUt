@@ -147,10 +147,11 @@ struct TestFailureException
 
 UnitTestMetadata& GlobalMetadata();
 std::vector<void*> GetCurrentStackFrames();
+void BreakInDebugger();
 
 } // namespace CppUt::Details
 
-void RunUnitTests();
+void RunUnitTests(bool waitForDebugger = false);
 
 }
 
@@ -162,6 +163,8 @@ public:
 		CppUt::Details::TestFailureException failure;
 		failure.Message = message;
 		failure.StackFrames = CppUt::Details::GetCurrentStackFrames();
+
+		CppUt::Details::BreakInDebugger();
 
 		throw failure;
 	}
