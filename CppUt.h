@@ -139,7 +139,7 @@ namespace CppUt {
 
 namespace Details {
 
-struct TestFailure
+struct TestFailureException
 {
 	std::wstring Message;
 	std::vector<void*> StackFrames;
@@ -147,7 +147,6 @@ struct TestFailure
 
 UnitTestMetadata& GlobalMetadata();
 std::vector<void*> GetCurrentStackFrames();
-void AddFailure(TestFailure&& failure);
 
 } // namespace CppUt::Details
 
@@ -160,11 +159,11 @@ class TestAssert
 public:
 	static void Fail(const wchar_t* message)
 	{
-		CppUt::Details::TestFailure failure;
+		CppUt::Details::TestFailureException failure;
 		failure.Message = message;
 		failure.StackFrames = CppUt::Details::GetCurrentStackFrames();
 
-		CppUt::Details::AddFailure(std::move(failure));
+		throw failure;
 	}
 
 	static void IsTrue(bool condition)

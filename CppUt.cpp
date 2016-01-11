@@ -164,25 +164,15 @@ void PrintCallstack(const std::vector<void*>& stackFrames)
 	}
 }
 
-void PrintFailures(const std::vector<TestFailure>& failures)
+void PrintFailure(const TestFailureException& failure)
 {
 	PrintFailureResult();
 
-	size_t failureNumber = 1;
+	Print(L"\n  ");
 
-	for (auto&& failure : failures)
-	{
-		Print(L"\n  ");
+	PrintWithColor(ConsoleColor::Red, L"%s\n", failure.Message.c_str());
 
-		if (failures.size() > 1)
-			PrintWithColor(ConsoleColor::Red, L"%lld of %lld: ", failureNumber, failures.size());
-
-		PrintWithColor(ConsoleColor::Red, L"%s\n", failure.Message.c_str());
-
-		PrintCallstack(failure.StackFrames);
-
-		++failureNumber;
-	}
+	PrintCallstack(failure.StackFrames);
 
 	Print(L"\n");
 }
@@ -217,32 +207,23 @@ void PrintResultSummary(const ResultSummary& summary)
 	Print(L"\n");
 }
 
-
-__declspec(thread) std::vector<TestFailure> s_currentFailures { };
-
 void RunTestMethod(const TestMethodMetadata& testMethod, ResultSummary& summary)
 {
 	PrintTestName(testMethod);
 
-	s_currentFailures = { };
-
-	testMethod.MethodFunction()();
-
-	if (s_currentFailures.size() == 0)
+	try
 	{
-		PrintSuccessResult();
-		++summary.SucceededCount;
+		testMethod.MethodFunction()();
 	}
-	else
+	catch (const TestFailureException& failure)
 	{
-		PrintFailures(s_currentFailures);
+		PrintFailure(failure);
 		++summary.FailedCount;
+		return;
 	}
-}
 
-void AddFailure(TestFailure&& failure)
-{
-	s_currentFailures.emplace_back(std::move(failure));
+	PrintSuccessResult();
+	++summary.SucceededCount;
 }
 
 } // namespace Details
