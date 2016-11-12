@@ -212,10 +212,7 @@ public:
 
 	static void AreEqual(const wchar_t* value1, const wchar_t* value2)
 	{
-		if (value1 == nullptr || value2 == nullptr)
-			IsTrue(value1 == nullptr && value2 == nullptr, L"AreEqual failed");
-		else
-			IsTrue(wcscmp(value1, value2) == 0, L"AreEqual failed");
+		IsTrue(wcscmp(value1, value2) == 0, L"AreEqual failed");
 	}
 
 	static constexpr double c_epsilon = 0.0001;
