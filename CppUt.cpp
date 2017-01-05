@@ -1,3 +1,5 @@
+#include "precomp.h"
+
 #include "CppUt.h"
 #include <memory>
 #include <Windows.h>
@@ -76,10 +78,7 @@ void PrintTestName(const TestMethodMetadata& testMethod)
 	Print(L"  %s", testMethod.MethodName());
 }
 
-static const wchar_t* c_succeededString = L"SUCCEEDED";
-static const wchar_t* c_failedString = L"FAILED";
-
-void PrintRightAlignedResultWithDots(ConsoleColor color, const wchar_t* resultString, uint16_t rightEdgeColumnWidth = 0)
+void PrintDots(size_t resultStringLength, uint16_t rightEdgeColumnWidth)
 {
 	uint16_t position;
 	uint16_t windowWidth;
@@ -87,16 +86,38 @@ void PrintRightAlignedResultWithDots(ConsoleColor color, const wchar_t* resultSt
 
 	auto width = rightEdgeColumnWidth > 0 ? std::min(rightEdgeColumnWidth, windowWidth) : windowWidth;
 
-	auto resultStringLength = wcslen(resultString);
+	auto dotCount = int16_t { SafeInt<int16_t>(width) - position - resultStringLength - 1 };
 
-	auto dotCount = width - position - resultStringLength - 1;
+	if (dotCount >= 0)
+	{
+		for (int16_t i = 0; i < dotCount; ++i)
+			Print(L".");
+	}
+	else
+	{
+		// Print dots to the end of this line, and print the result right-aligned on the next line.
+		dotCount = int16_t { SafeInt<int16_t>(width) - position };
+		if (dotCount < 0)
+		{
+			return;
+		}
+		else
+		{
+			for (int16_t i = 0; i < dotCount; ++i)
+				Print(L".");
+			Print(L"\n  ");
 
-	if (dotCount < 0)
-		dotCount = 0;
+			PrintDots(resultStringLength, rightEdgeColumnWidth);
+		}
+	}
+}
 
-	for (uint16_t i = 0; i < dotCount; ++i)
-		Print(L".");
+static const wchar_t* c_succeededString = L"SUCCEEDED";
+static const wchar_t* c_failedString = L"FAILED";
 
+void PrintRightAlignedResultWithDots(ConsoleColor color, const wchar_t* resultString, uint16_t rightEdgeColumnWidth = 0)
+{
+	PrintDots(wcslen(resultString), rightEdgeColumnWidth);
 	PrintWithColor(color, L"%s\n", resultString);
 }
 
