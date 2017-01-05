@@ -105,7 +105,7 @@ void PrintDots(size_t resultStringLength, uint16_t rightEdgeColumnWidth)
 		{
 			for (int16_t i = 0; i < dotCount; ++i)
 				Print(L".");
-			Print(L"\n  ");
+			Print(L"\n    ");
 
 			PrintDots(resultStringLength, rightEdgeColumnWidth);
 		}
