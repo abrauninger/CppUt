@@ -210,9 +210,23 @@ public:
 		AreEqualImpl<size_t>(value1, value2);
 	}
 
+private:
+	template <class Char>
+	static void AssertCharacterStringsAreEqual(const Char* value1, const Char* value2)
+	{
+		AreEqual(std::char_traits<Char>::length(value1), std::char_traits<Char>::length(value2));
+		IsTrue(std::char_traits<Char>::compare(value1, value2, std::char_traits<Char>::length(value1)) == 0, L"AreEqual failed");
+	}
+
+public:
 	static void AreEqual(const wchar_t* value1, const wchar_t* value2)
 	{
-		IsTrue(wcscmp(value1, value2) == 0, L"AreEqual failed");
+		AssertCharacterStringsAreEqual(value1, value2);
+	}
+
+	static void AreEqual(const char32_t* value1, const char32_t* value2)
+	{
+		AssertCharacterStringsAreEqual(value1, value2);
 	}
 
 	static constexpr double c_epsilon = 0.0001;
