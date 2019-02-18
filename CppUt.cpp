@@ -1,4 +1,6 @@
-#include "precomp.h"
+#ifdef CPPUT_PRECOMP
+#include CPPUT_PRECOMP
+#endif
 
 #include "CppUt.h"
 #include <memory>
