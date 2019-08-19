@@ -1,4 +1,4 @@
-#include "CppUt.h"
+#include <CppUt/CppUt.h>
 #include <cstdio>
 
 
