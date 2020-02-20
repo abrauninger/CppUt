@@ -200,6 +200,8 @@ public:
 		AreEqualImpl<int32_t>(value1, SafeInt<int32_t>(value2));
 	}
 
+#if INTPTR_MAX == INT64_MAX
+	// 64-bit only (since on 32-bit these end up being duplicate declarations of the previous methods)
 	static void AreEqual(int32_t value1, size_t value2)
 	{
 		AreEqualImpl<size_t>(SafeInt<size_t>(value1), value2);
@@ -209,6 +211,7 @@ public:
 	{
 		AreEqualImpl<size_t>(value1, value2);
 	}
+#endif
 
 private:
 	template <class Char>
