@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <SafeInt.h>
+#include <string>
 #include <StrSafe.h>
 #include <tuple>
 #include <utility>
